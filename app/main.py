@@ -1,7 +1,7 @@
 from fastapi import FastAPI
-from app.routers import preprocess
+from .routers import preprocess, summarize, questions
 
-app = FastAPI(title="Study Assistant", version="0.1")
+app = FastAPI(title="J.A.R.V.I.S - Study Assistant", version="0.1")
 
 
 @app.get("/health")
@@ -12,3 +12,5 @@ def health_check():
 
 # Register Routers
 app.include_router(preprocess.router)
+app.include_router(summarize.router)
+app.include_router(questions.router)
