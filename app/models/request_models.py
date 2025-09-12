@@ -46,16 +46,23 @@ class QGenRequest(BaseModel):
     difficulty: int = 2
     Q_type: str = None
 
+class docIn(BaseModel):
+    id: str
+    text: str
+    source: Optional[str] = None
+    meta: Optional[Dict[str,Any]] = None
+
+class IngestRequest(BaseModel):
+    docs: List[docIn]
 
 class QArequest(BaseModel):
-    session_id: Optional[str] = Field(None, description="Optional session id for chat history")
-    question: str
-    top_k: int = 5
-    similarity_threshold: float = 0.65  # tune per dataset
-    use_embeddings: Optional[str] = Field("hf", description="hf or openai")
+    query: str
+    chat_history: Optional[List[Dict[str,str]]] = None
+    k: Optional[int] = 5
     
 class QAResponse(BaseModel):
-    answer: str
     on_topic: bool
-    retrieved_docs: List[Dict[str, Any]] = []
-    session_id: Optional[str] = None
+    answer: Optional[str] = None
+    redirect: Optional[str] = None
+    sources: List[str]
+    retrievals: Optional[List[Dict[str,Any]]] = None

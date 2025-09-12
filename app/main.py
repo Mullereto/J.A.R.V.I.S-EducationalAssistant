@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from .routers import preprocess, summarize, questions
+from .routers import preprocess, summarize, questions, qa
 
 app = FastAPI(title="J.A.R.V.I.S - Study Assistant", version="0.1")
 
@@ -14,3 +14,4 @@ def health_check():
 app.include_router(preprocess.router)
 app.include_router(summarize.router)
 app.include_router(questions.router)
+app.include_router(qa.router)

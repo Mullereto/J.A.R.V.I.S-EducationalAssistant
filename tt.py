@@ -67,7 +67,15 @@ TF_prompt = (
 )
 
     
-raw = call_ollama(TF_prompt)
-parsed = json.loads(raw)
+# raw = call_ollama(TF_prompt)
+# parsed = json.loads(raw)
 
-print("THE FINAL ", parsed)
+# print("THE FINAL ", parsed)
+
+from app.services.embeddings import add_documents, search
+
+docs = [{"id": "doc1", "text": "Test about AI agents.", "source": "manual"}]
+add_documents(docs)
+
+results = search("What is AI?")
+print(results)
