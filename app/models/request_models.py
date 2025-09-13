@@ -39,7 +39,6 @@ class QuestionItem(BaseModel):
     rationale: Optional[str] = None  # explanation for the answer
     
 class QGenRequest(BaseModel):
-    question_id: str
     text: str
     source: str = None
     n_questions: int = 3
