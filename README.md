@@ -30,12 +30,13 @@ Study-Assistant/
 │   ├── routers/             # FastAPI endpoints (preprocess, summarize, questions, qa)
 │   ├── services/            # Core logic (summarizer, question_gen, RAG store)
 │   ├── utils/               # File parsing, transcription helpers
-│   └── main.py              # FastAPI entrypoint
+│   ├── main.py              # FastAPI entrypoint
+│   └── streamlit_app.py     # Educator-facing UI (Streamlit)
 │
-│── streamlit_app.py         # Educator-facing UI (Streamlit)
 │── requirements.txt         # Python dependencies
-│── Dockerfile               # Containerization
 │── README.md                # Documentation
+│── LICENSE                  # MIT License
+│── .gitignore               # Ignore files
 ```
 
 ---
