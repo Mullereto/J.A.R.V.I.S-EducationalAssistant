@@ -20,6 +20,11 @@ Built with **FastAPI + Streamlit + HuggingFace + FAISS**
 
 ---
 
+## Demo Video
+
+[](https://github.com/user-attachments/assets/65898b79-f508-49b1-a404-29ce97e235db)
+---
+
 ## Project Structure
 
 ```
@@ -98,7 +103,3 @@ streamlit run streamlit_app.py
 - Password: `password123`  
 
 ---
-
-## Demo Video
-
-I will added
