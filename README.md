@@ -1,6 +1,6 @@
 # J.A.R.V.I.S — Educational Assistant
 
-J.A.R.V.I.S is an AI-powered assistant for educators.  
+J.A.R.V.I.S is an AI-powered Agent WorkFlow assistant for educators.  
 It allows teachers to upload course materials (PDF, audio, video), automatically generate summaries, create practice questions (MCQ / True-False), and run Q&A sessions grounded in course content.
 
 Built with **FastAPI + Streamlit + HuggingFace + FAISS**
