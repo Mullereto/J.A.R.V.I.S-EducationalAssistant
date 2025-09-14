@@ -1,13 +1,13 @@
 import os
-import io
 import json
 import uuid
+import time
+import threading
 import streamlit as st
 import requests
 
 # -------- CONFIG ----------
 BACKEND_URL = os.getenv("COURSETA_BACKEND", "http://127.0.0.1:8000")  # FastAPI base URL
-# Demo credentials (override with environment variables for nicer demo)
 DEMO_USER = os.getenv("COURSETA_USER", "educator")
 DEMO_PASS = os.getenv("COURSETA_PASS", "password123")
 
@@ -88,21 +88,58 @@ with tabs[0]:
     if uploaded:
         st.info(f"File uploaded: {uploaded.name} ({uploaded.type})")
         endpoint = PREPROCESS
+
         if not endpoint:
             st.error("Unsupported file type")
         else:
             if st.button("Send to preprocess"):
-                # prepare file tuple for requests
                 files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
-                with st.spinner("Uploading & preprocessing..."):
-                    resp = api_post(endpoint, files=files)
+
+                progress_bar = st.progress(0)
+                status_placeholder = st.empty()
+
+                # Shared container for response and a completion event
+                resp_container = {"resp": None}
+                done_event = threading.Event()
+
+                def run_request():
+                    try:
+                        # perform the blocking API call in background
+                        resp_container["resp"] = api_post(endpoint, files=files)
+                    finally:
+                        # signal that the request is done (success or error)
+                        done_event.set()
+
+                # start background thread
+                worker = threading.Thread(target=run_request, daemon=True)
+                worker.start()
+
+                # animate progress until the worker completes
+                pct = 0
+                while not done_event.is_set():
+                    progress_bar.progress(pct)
+                    status_placeholder.text(f"Processing... {pct}%")
+                    time.sleep(3)            # smooth animation interval
+                    # increase pct but cap below 100 so it finishes only after real response
+                    pct = pct + 2 if pct < 90 else 90
+
+                # finalize
+                progress_bar.progress(100)
+                status_placeholder.text("Processing complete ✅")
+
+                resp = resp_container["resp"]
                 if resp:
-                    # api returns {source, text}
                     sid = str(uuid.uuid4())
-                    st.session_state.texts.insert(0, {"id": sid, "source": resp.get("source", uploaded.name), "text": resp.get("text", "")})
+                    st.session_state.texts.insert(0, {
+                        "id": sid,
+                        "source": resp.get("source", uploaded.name),
+                        "text": resp.get("text", "")
+                    })
                     st.success("Preprocessing complete — text stored in session")
                     st.write("Preview (first 1000 chars):")
                     st.code(resp.get("text", "")[:1000])
+                else:
+                    st.error("Preprocessing failed (check backend logs).")
     if st.session_state.texts:
         st.markdown("**Previously uploaded / preprocessed texts (session)**")
         for t in st.session_state.texts[:5]:
@@ -140,6 +177,7 @@ with tabs[1]:
             else:
                 txt = t["text"]
                 source = t["source"]
+
         if txt:
             payload = {
                 "source": source,
@@ -149,22 +187,60 @@ with tabs[1]:
                 "abstractive_style": abstractive_style,
                 "comments": FeedBack
             }
-            with st.spinner("Generating summary..."):
-                resp = api_post(SUMMARIZE, json_data=payload)
+
+            progress_bar = st.progress(0)
+            status_placeholder = st.empty()
+
+            resp_container = {"resp": None}
+            done_event = threading.Event()
+
+            def run_request():
+                try:
+                    resp_container["resp"] = api_post(SUMMARIZE, json_data=payload)
+                finally:
+                    done_event.set()
+
+            worker = threading.Thread(target=run_request, daemon=True)
+            worker.start()
+
+            pct = 0
+            while not done_event.is_set():
+                progress_bar.progress(pct)
+                status_placeholder.text(f"Summarizing... {pct}%")
+                time.sleep(3)
+                pct = pct + 1 if pct < 95 else 95
+
+            progress_bar.progress(100)
+            status_placeholder.text("Summary complete ✅")
+
+            resp = resp_container["resp"]
             if resp:
-                # Create local id for this summary so educator can keep it and optionally refine offline
                 sid = str(uuid.uuid4())
-                st.session_state.summaries[sid] = {"id": sid, "source": source, "toc": resp.get("toc", []),
-                                                   "extractive": resp.get("extractive", []), "abstract": resp.get("abstract","")}
+                st.session_state.summaries[sid] = {
+                    "id": sid,
+                    "source": source,
+                    "toc": resp.get("toc", []),
+                    "extractive": resp.get("extractive", []),
+                    "abstract": resp.get("abstract_summary", ""),
+                    "comments": resp.get("comments", "")
+                }
                 st.success("Summary generated (stored in session)")
+
                 st.subheader("Table of Contents")
                 for i, item in enumerate(resp.get("toc", []), 1):
                     st.write(f"{i}. {item.get('title')} — {item.get('hint','')}")
+
                 st.subheader("Extractive Key Points")
                 for b in resp.get("extractive", []):
                     st.write(f"- {b}")
+
+                st.subheader("Additional Comments from the user")
+                st.write(resp.get("comments", ""))
+
                 st.subheader("Abstractive Summary")
-                st.write(resp.get("abstract_summary",""))
+                st.write(resp.get("abstract_summary", ""))
+            else:
+                st.error("Summary request failed (check backend logs).")
     if st.session_state.summaries:
         st.markdown("**Local summaries (session)**")
         for sid, s in list(st.session_state.summaries.items())[-5:]:
@@ -201,29 +277,53 @@ with tabs[2]:
             else:
                 txt = t["text"]
                 src = t["source"]
+
         if txt:
             payload = {"text": txt, "source": src, "n_questions": int(n_questions), "difficulty": int(difficulty), "Q_type": Q_type}
-            with st.spinner("Generating questions..."):
-                
-                resp = api_post(QUESTION_GENERATE, json_data=payload)
-                
-            if resp:
-                # resp is list of question items
 
+            # progress placeholders
+            progress_bar = st.progress(0)
+            status_placeholder = st.empty()
+            done_event = threading.Event()
+
+            result_holder = {"resp": None}  # ✅ mutable dict instead of nonlocal
+
+            def run_request():
+                try:
+                    result_holder["resp"] = api_post(QUESTION_GENERATE, json_data=payload)
+                finally:
+                    done_event.set()
+
+            threading.Thread(target=run_request).start()
+
+            # update progress while waiting
+            pct = 0
+            while not done_event.is_set():
+                progress_bar.progress(pct)
+                status_placeholder.text(f"Generating questions... {pct}%")
+                time.sleep(3)       # slower updates
+                pct = pct + 1 if pct < 95 else 95
+
+            done_event.wait()
+            progress_bar.progress(100)
+            status_placeholder.text("Done ✅")
+
+            resp = result_holder["resp"]  # ✅ get it back safely
+            if resp:
                 for q in resp:
-                    
                     st.session_state.questions[q["id"]] = q
                 st.success(f"Generated {len(resp)} questions and stored in session")
+
     # show existing questions
     if st.session_state.questions:
         st.subheader("Generated Questions")
         for qid, q in list(st.session_state.questions.items())[-10:]:
-            with st.expander(f"[{q['type'].upper()}] {q['question']} (id: {qid})"):
+            with st.expander(f"[{q['type'].upper()}] {q['question']}"):
                 st.write(f"Difficulty: {q.get('difficulty')}")
                 if q.get("options"):
                     for opt in q["options"]:
                         st.write(f" - ({opt['id']}) {opt['option']}")
-                st.write(f"Answer: {q.get("answer")}")
+                st.write(f"Answer: {q.get('answer')}")
                 st.write("Rationale:")
                 st.write(q.get("rationale", ""))
 # -------- Tab 4: Q&A ----------
@@ -234,6 +334,7 @@ with tabs[3]:
 
     ingest_choice = st.selectbox("Ingest source", ["-- paste new chunk --"] + [f"{t['source']} ({t['id']})" for t in st.session_state.texts])
     chunk_text = st.text_area("Chunk text to ingest (overrides selection)", height=150)
+    
     if st.button("Ingest chunk"):
         if chunk_text.strip():
             docs = [{"id": str(uuid.uuid4()), "text": chunk_text, "source": "pasted_chunk"}]
@@ -244,9 +345,36 @@ with tabs[3]:
             sel_id = ingest_choice.split("(")[-1].strip(")")
             t = next((x for x in st.session_state.texts if x["id"] == sel_id), None)
             docs = [{"id": str(uuid.uuid4()), "text": t["text"], "source": t["source"]}] if t else []
+        
         if docs:
             payload = {"docs": docs}
-            res = api_post(QA_INGEST, json_data=payload)
+
+            # progress placeholders
+            progress_bar = st.progress(0)
+            status_placeholder = st.empty()
+            done_event = threading.Event()
+            result_holder = {"resp": None}
+
+            def run_request():
+                try:
+                    result_holder["resp"] = api_post(QA_INGEST, json_data=payload)
+                finally:
+                    done_event.set()
+
+            threading.Thread(target=run_request).start()
+
+            pct = 0
+            while not done_event.is_set():
+                progress_bar.progress(pct)
+                status_placeholder.text(f"Ingesting docs... {pct}%")
+                time.sleep(2)
+                pct = pct + 2 if pct < 95 else 95
+
+            done_event.wait()
+            progress_bar.progress(100)
+            status_placeholder.text("Done ✅")
+
+            res = result_holder["resp"]
             if res:
                 st.success(f"Ingested docs: {res.get('added')} (index size: {res.get('index_size')})")
 
@@ -257,7 +385,33 @@ with tabs[3]:
             st.error("Enter a question")
         else:
             payload = {"query": q_input, "chat_history": st.session_state.chat_history, "k": 5}
-            res = api_post(QA_ASK, json_data=payload)
+
+            # progress placeholders
+            progress_bar = st.progress(0)
+            status_placeholder = st.empty()
+            done_event = threading.Event()
+            result_holder = {"resp": None}
+
+            def run_request():
+                try:
+                    result_holder["resp"] = api_post(QA_ASK, json_data=payload)
+                finally:
+                    done_event.set()
+
+            threading.Thread(target=run_request).start()
+
+            pct = 0
+            while not done_event.is_set():
+                progress_bar.progress(pct)
+                status_placeholder.text(f"Asking... {pct}%")
+                time.sleep(3)
+                pct = pct + 2 if pct < 95 else 95
+
+            done_event.wait()
+            progress_bar.progress(100)
+            status_placeholder.text("Done ✅")
+
+            res = result_holder["resp"]
             if res:
                 if not res.get("on_topic"):
                     st.warning(res.get("redirect"))
@@ -267,7 +421,6 @@ with tabs[3]:
                     st.markdown("**Sources:**")
                     for s in res.get("sources", []):
                         st.write(f"- {s}")
-                    # update chat history
                     st.session_state.chat_history.append({"role":"user","content": q_input})
                     st.session_state.chat_history.append({"role":"assistant","content": res.get("answer", "")})
 

@@ -78,21 +78,23 @@ def generate_TOC(text:str, max_level:int=3) -> List[Dict[str,str]]:
         title = item.get("title")
         hint = item.get("hint", "")
         out.append({"title": str(title), "hint": str(hint)})
-    
     return out
 
-def abstractive_summary(key_points: List[str], Toc:List[Dict], style: str = "concise") -> str:
+def abstractive_summary(key_points: List[str], Toc:List[Dict], style: str = "concise", comments:str=None) -> str:
     """
     Use the model to generate a summary for the given text.
     """
     kp_text = "\n".join(f"- {s}" for s in key_points)
     toc_text = "\n".join(f"- {s['title']}: {s['hint']}, " for s in Toc)
+    print("i alomst finish")
     prompt = (
         f"Using the following key points and table of contents, write a {style} narrative summary suitable for a student study guide. "
-        "Include brief examples where helpful, and keep it well-structured with paragraphs using the following table of contents.\n\n"
+        "Include brief examples where helpful, and keep it well-structured with paragraphs using the following table of contents and following the EDITOR NOTE.\n\n"
         f"Key points:\n{kp_text}\n\n"
+        f"YOU MUST FOLLOW THE EDITOR NOTE: {comments}\n\n"
         f"Table of Contents:\n{toc_text}\n\n"
         "Provide the final summary only."
     )
     raw = call_ollama(prompt)
+
     return raw.strip()

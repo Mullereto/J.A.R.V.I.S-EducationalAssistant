@@ -13,7 +13,7 @@ class SummarizeRequest(BaseModel):
     toc_levels: int = Field(2, description="Max depth for generated TOC")
     extractive_sentences: int = Field(8, description="How many key sentences for extractive step")
     abstractive_style: Optional[str] = Field("concise", description="Tone for abstractive summary (e.g., concise, detailed)")
-    comments: Optional[str] = None
+    comments: str = None
     
 class SummarizeResponse(BaseModel):
     summary_id: str

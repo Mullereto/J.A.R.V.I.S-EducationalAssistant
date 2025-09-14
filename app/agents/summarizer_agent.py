@@ -18,10 +18,8 @@ def create_summary(text:str, summary_id:str=None, feedback:str=None, source:str=
     
     logger.info("Creating summary %s for source %s", summary_id, source)
     key_points = extractive_summary(text, extractive_sentance)
-    enhanced_kp = key_points + [f"EDITOR NOTE: {feedback}"]
     toc = generate_TOC(text, toc_level)
-    
-    abstract = abstractive_summary(enhanced_kp, toc, abstractive_style)
+    abstract = abstractive_summary(key_points, toc, abstractive_style, feedback)
     
     payload = {
         "id": summary_id,
