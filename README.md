@@ -21,7 +21,9 @@ Built with **FastAPI + Streamlit + HuggingFace + FAISS**
 ---
 
 ## Demo Video
-https://github.com/user-attachments/assets/17a758fa-ca4f-4a38-bfb8-425876f43124
+
+<video src="https://github.com/user-attachments/assets/17a758fa-ca4f-4a38-bfb8-425876f43124" controls width="600"></video>
+
 ---
 
 ## Project Structure
