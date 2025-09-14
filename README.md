@@ -22,7 +22,7 @@ Built with **FastAPI + Streamlit + HuggingFace + FAISS**
 
 ## Demo Video
 
-[Video][(https://github.com/user-attachments/assets/65898b79-f508-49b1-a404-29ce97e235db)](https://github.com/Mullereto/J.A.R.V.I.S-EducationalAssistant/discussions/1#discussion-8896011)
+https://github.com/user-attachments/assets/07341b01-82c2-4a04-ba18-212996d681f1
 ---
 
 ## Project Structure
