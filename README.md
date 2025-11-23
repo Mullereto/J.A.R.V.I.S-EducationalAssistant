@@ -1,3 +1,14 @@
+---
+title: AI Research Assistant
+emoji: 🔍
+colorFrom: blue
+colorTo: green
+sdk: streamlit
+sdk_version: 1.28.0
+app_file: app.py
+pinned: false
+---
+
 # J.A.R.V.I.S — Educational Assistant
 
 J.A.R.V.I.S is an AI-powered Agent WorkFlow assistant for educators.  
@@ -104,3 +115,12 @@ streamlit run streamlit_app.py
 - Password: `password123`  
 
 ---
+
+**4. `.gitignore`**:
+```
+__pycache__/
+*.pyc
+.env
+.venv/
+*.db
+chroma_db/
